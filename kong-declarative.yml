@@ -1,0 +1,142 @@
+_format_version: "3.0"
+
+# LOGIFLOW - Kong Gateway Declarative Configuration
+# Generated: 2025-12-17
+# Environment: Production-Ready Fase 1
+
+services:
+  - name: auth-service
+    url: http://auth-service:8081/api/v1/auth
+    protocol: http
+    host: auth-service
+    port: 8081
+    path: /api/v1/auth
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    routes:
+      - name: auth-route
+        paths:
+          - /api/auth
+        strip_path: true
+        preserve_host: false
+        protocols:
+          - http
+          - https
+        # No JWT plugin - public endpoints
+
+  - name: pedido-service
+    url: http://pedido-service:8082/pedidos
+    protocol: http
+    host: pedido-service
+    port: 8082
+    path: /pedidos
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    routes:
+      - name: pedido-route
+        paths:
+          - /api/pedidos
+        strip_path: true
+        preserve_host: false
+        protocols:
+          - http
+          - https
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: iss
+          secret_is_base64: false
+          claims_to_verify:
+            - exp
+          algorithm: HS512
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+
+  - name: fleet-service
+    url: http://fleet-service:8083/fleet
+    protocol: http
+    host: fleet-service
+    port: 8083
+    path: /fleet
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    routes:
+      - name: fleet-route
+        paths:
+          - /api/fleet
+        strip_path: true
+        preserve_host: false
+        protocols:
+          - http
+          - https
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: iss
+          secret_is_base64: false
+          claims_to_verify:
+            - exp
+          algorithm: HS512
+
+  - name: billing-service
+    url: http://billing-service:8084/billing
+    protocol: http
+    host: billing-service
+    port: 8084
+    path: /billing
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    routes:
+      - name: billing-route
+        paths:
+          - /api/billing
+        strip_path: true
+        preserve_host: false
+        protocols:
+          - http
+          - https
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: iss
+          secret_is_base64: false
+          claims_to_verify:
+            - exp
+          algorithm: HS512
+
+consumers:
+  - username: logiflow-jwt-validator
+    custom_id: logiflow-system
+    jwt_secrets:
+      - key: logiflow-auth-service
+        algorithm: HS512
+        # secret: ${JWT_SECRET} - Load from environment variable
+
+plugins:
+  - name: file-log
+    config:
+      path: /tmp/kong-access.log
+      reopen: true
+    enabled: true
+  
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true
+    enabled: true
+
+  - name: request-id
+    enabled: true

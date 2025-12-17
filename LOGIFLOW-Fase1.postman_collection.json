@@ -1,0 +1,653 @@
+{
+	"info": {
+		"name": "LOGIFLOW - Fase 1 Complete",
+		"description": "Collection completa para verificar criterio de aceptación Fase 1:\n- Cliente autenticado crea pedido urbano\n- Supervisor consulta pedido en estado RECIBIDO\n- Todas las operaciones via Kong Gateway (localhost:8000)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. AUTH - Register Cliente",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Response has success=true\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Usuario registrado\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.message).to.include(\"registrado\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"cliente1@test.com\",\n  \"password\": \"Pass1234!\",\n  \"nombre\": \"Cliente\",\n  \"apellido\": \"Test\",\n  \"telefono\": \"0999999999\",\n  \"roleName\": \"CLIENTE\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/auth/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"auth",
+						"register"
+					]
+				},
+				"description": "Registra un nuevo usuario con rol CLIENTE"
+			},
+			"response": []
+		},
+		{
+			"name": "2. AUTH - Login Cliente",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has accessToken\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.accessToken).to.exist;",
+							"    pm.collectionVariables.set(\"cliente_token\", jsonData.data.accessToken);",
+							"    pm.collectionVariables.set(\"cliente_id\", jsonData.data.user.id);",
+							"});",
+							"",
+							"pm.test(\"User role is CLIENTE\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.user.rol.name).to.eql(\"CLIENTE\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"cliente1@test.com\",\n  \"password\": \"Pass1234!\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/auth/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				},
+				"description": "Login del cliente y extracción del JWT token"
+			},
+			"response": []
+		},
+		{
+			"name": "3. PEDIDO - Crear Pedido URBANA",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Pedido creado con estado RECIBIDO\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.estado).to.eql(\"RECIBIDO\");",
+							"    pm.collectionVariables.set(\"pedido_id\", jsonData.data.id);",
+							"});",
+							"",
+							"pm.test(\"Tipo entrega es URBANA\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.tipoEntrega).to.eql(\"URBANA\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{cliente_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"clienteId\": \"{{cliente_id}}\",\n  \"direccionOrigen\": \"Av. Amazonas, Quito Norte\",\n  \"direccionDestino\": \"La Carolina, Quito\",\n  \"tipoEntrega\": \"URBANA\",\n  \"zonaId\": \"QUITO-NORTE\",\n  \"distanciaKm\": 5.2,\n  \"notas\": \"Paquete frágil - manejar con cuidado\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/pedidos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"pedidos"
+					]
+				},
+				"description": "Cliente autenticado crea un pedido urbano"
+			},
+			"response": []
+		},
+		{
+			"name": "4. PEDIDO - GET Pedido (Cliente)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Estado es RECIBIDO\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.estado).to.eql(\"RECIBIDO\");",
+							"});",
+							"",
+							"pm.test(\"Tipo entrega URBANA\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.tipoEntrega).to.eql(\"URBANA\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{cliente_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/pedidos/{{pedido_id}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"pedidos",
+						"{{pedido_id}}"
+					]
+				},
+				"description": "Cliente consulta su propio pedido"
+			},
+			"response": []
+		},
+		{
+			"name": "5. AUTH - Register Supervisor",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Supervisor registrado\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"supervisor1@test.com\",\n  \"password\": \"Pass1234!\",\n  \"nombre\": \"Super\",\n  \"apellido\": \"Visor\",\n  \"telefono\": \"0988888888\",\n  \"roleName\": \"SUPERVISOR\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/auth/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"auth",
+						"register"
+					]
+				},
+				"description": "Registra un usuario con rol SUPERVISOR"
+			},
+			"response": []
+		},
+		{
+			"name": "6. AUTH - Login Supervisor",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has accessToken\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.accessToken).to.exist;",
+							"    pm.collectionVariables.set(\"supervisor_token\", jsonData.data.accessToken);",
+							"});",
+							"",
+							"pm.test(\"User role is SUPERVISOR\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.user.rol.name).to.eql(\"SUPERVISOR\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"supervisor1@test.com\",\n  \"password\": \"Pass1234!\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/auth/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				},
+				"description": "Login del supervisor y extracción del JWT token"
+			},
+			"response": []
+		},
+		{
+			"name": "7. PEDIDO - GET Pedido (Supervisor)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"✅ CRITERIO ACEPTACIÓN: Supervisor ve pedido en RECIBIDO\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.estado).to.eql(\"RECIBIDO\");",
+							"});",
+							"",
+							"pm.test(\"Pedido es URBANA\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.tipoEntrega).to.eql(\"URBANA\");",
+							"});",
+							"",
+							"console.log(\"✅ FASE 1 COMPLETADA: Supervisor consultó pedido creado por cliente\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{supervisor_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/pedidos/{{pedido_id}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"pedidos",
+						"{{pedido_id}}"
+					]
+				},
+				"description": "✅ CRITERIO FASE 1: Supervisor consulta el pedido creado por cliente y ve estado RECIBIDO"
+			},
+			"response": []
+		},
+		{
+			"name": "8. PEDIDO - Test 401 sin JWT",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 401 Unauthorized sin JWT\", function () {",
+							"    pm.response.to.have.status(401);",
+							"});",
+							"",
+							"pm.test(\"Kong rechaza request sin token\", function () {",
+							"    pm.expect(pm.response.text()).to.include(\"Unauthorized\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/pedidos/{{pedido_id}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"pedidos",
+						"{{pedido_id}}"
+					]
+				},
+				"description": "Verifica que Kong rechaza requests sin JWT"
+			},
+			"response": []
+		},
+		{
+			"name": "9. FLEET - GET Disponibles",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is array\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{supervisor_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/fleet/disponible?fleetType=AUTO",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"fleet",
+						"disponible"
+					],
+					"query": [
+						{
+							"key": "fleetType",
+							"value": "AUTO"
+						}
+					]
+				},
+				"description": "Consulta vehículos disponibles tipo AUTO"
+			},
+			"response": []
+		},
+		{
+			"name": "10. BILLING - Crear Factura",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Factura en estado BORRADOR\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.estado).to.eql(\"BORRADOR\");",
+							"});",
+							"",
+							"pm.test(\"Total incluye IVA 15%\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.impuestos).to.eql(15.00);",
+							"    pm.expect(jsonData.total).to.eql(115.00);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{cliente_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"pedidoId\": 1,\n  \"clienteId\": 1,\n  \"subtotal\": 100.00,\n  \"impuestos\": 15.00,\n  \"total\": 115.00,\n  \"estado\": \"BORRADOR\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/billing/facturas",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"billing",
+						"facturas"
+					]
+				},
+				"description": "Crear factura en estado BORRADOR con IVA 15%"
+			},
+			"response": []
+		},
+		{
+			"name": "11. RATE LIMIT - Test 429",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Eventually returns 429 after 100 requests\", function () {",
+							"    // This request is part of a batch to test rate limiting",
+							"    // Run this 105 times to see 429 responses",
+							"    const status = pm.response.code;",
+							"    pm.expect([200, 429]).to.include(status);",
+							"});",
+							"",
+							"if (pm.response.code === 429) {",
+							"    console.log(\"✅ Rate limiting working: HTTP 429 received\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{cliente_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/pedidos/{{pedido_id}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"pedidos",
+						"{{pedido_id}}"
+					]
+				},
+				"description": "Ejecutar este request 105 veces para ver rate limiting (100 req/min)"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "cliente_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "supervisor_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pedido_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "cliente_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

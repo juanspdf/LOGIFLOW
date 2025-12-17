@@ -1,0 +1,49 @@
+# ========================================
+# LOGIFLOW - Git Ignore
+# ========================================
+
+# Environment variables (secretos sensibles)
+.env
+.env.local
+.env.production
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Node (si se agrega frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Database dumps
+*.sql.dump
+*.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: logiflow-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - logiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/authservice_core
+      dockerfile: Dockerfile
+    container_name: logiflow-auth-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - logiflow-network
+    restart: unless-stopped
+
+  # Pedido Service
+  pedido-service:
+    build:
+      context: ./services/pedido-service
+      dockerfile: Dockerfile
+    container_name: logiflow-pedido-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - logiflow-network
+    restart: unless-stopped
+
+  # Fleet Service
+  fleet-service:
+    build:
+      context: ./services/fleet-service
+      dockerfile: Dockerfile
+    container_name: logiflow-fleet-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - logiflow-network
+    restart: unless-stopped
+
+  # Billing Service
+  billing-service:
+    build:
+      context: ./services/billing-service
+      dockerfile: Dockerfile
+    container_name: logiflow-billing-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - logiflow-network
+    restart: unless-stopped
+
+  # Kong Database
+  kong-database:
+    image: postgres:16-alpine
+    container_name: logiflow-kong-db
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_DB: kong
+    volumes:
+      - kong_data:/var/lib/postgresql/data
+    networks:
+      - logiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kong Migrations
+  kong-migrations:
+    image: kong:3.5
+    container_name: logiflow-kong-migrations
+    command: kong migrations bootstrap
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_PORT: 5432
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    networks:
+      - logiflow-network
+    restart: on-failure
+
+  # Kong Gateway
+  kong-gateway:
+    image: kong:3.5
+    container_name: logiflow-kong-gateway
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_PORT: 5432
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+    ports:
+      - "8000:8000"  # Proxy HTTP
+      - "8443:8443"  # Proxy HTTPS
+      - "8001:8001"  # Admin API
+      - "8002:8002"  # Admin GUI
+    depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_started
+      pedido-service:
+        condition: service_started
+      fleet-service:
+        condition: service_started
+      billing-service:
+        condition: service_started
+    networks:
+      - logiflow-network
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  logiflow-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  kong_data:

@@ -1,0 +1,13 @@
+---
+timestamp:
+- 2025
+- 12
+- 17
+- 11
+- 45
+- 29
+- 213872360
+status: 500
+error: "Internal Server Error"
+message: "Ha ocurrido un error interno en el servidor"
+path: "/v3/api-docs"
